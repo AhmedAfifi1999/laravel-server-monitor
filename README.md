@@ -1,58 +1,130 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Server Pulse
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A real-time Linux server monitoring dashboard built with **Laravel** and **Livewire** — combining application development with hands-on Linux system administration.
 
-## About Laravel
+Unlike generic monitoring tools, Server Pulse reads live system data directly from the host (via shell commands like `ps`, `df`, `free`, `systemctl`), stores historical metrics in a database, and automatically opens/resolves **incidents** when resource usage crosses configurable thresholds — with email and Telegram alerts.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+![Login screen](docs/screenshot-login.png)
+![Dashboard](docs/screenshot-dashboard.png)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Why this project
 
-## Learning Laravel
+Most portfolio projects show either "I can build a web app" or "I know Linux" — rarely both. Server Pulse is meant to demonstrate that a Laravel application and the Linux server it runs on aren't separate concerns: the app itself reads and reasons about real system state.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Features
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- **Live dashboard** — CPU, memory, disk, load average, top processes, and service status, auto-refreshing every few seconds
+- **Historical tracking** — metrics recorded to the database every minute via Laravel's scheduler, not just held in memory
+- **Automatic incident detection** — when a metric exceeds a configured threshold, an incident opens; when it returns to normal, the incident auto-resolves
+- **Alerts** — email and Telegram notifications sent on incident open/resolve
+- **Authentication** — the dashboard is protected behind a login screen (session-based, no public registration)
+- **Zero external monitoring dependencies** — no Zabbix/Prometheus agent required; everything runs through native Linux commands and Laravel's own scheduler
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Tech stack
 
-## Agentic Development
+| Layer | Technology |
+|---|---|
+| Backend | Laravel 11 |
+| Live UI | Livewire (polling-based updates) |
+| Styling | Tailwind CSS |
+| Database | MySQL (or SQLite for local testing) |
+| Scheduling | Laravel Scheduler (`schedule:work` / cron) |
+| Notifications | Laravel Notifications (Mail) + a hand-built Telegram Bot API channel |
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Architecture
 
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+ServerMonitorService   → reads live system data via shell commands (ps, df, free, systemctl, /proc)
+        │
+        ▼
+Dashboard (Livewire)   → polls the service every few seconds, renders the live UI
+        │
+monitor:record (scheduled every minute)
+        │
+        ▼
+ServerMetric (DB)      → historical readings for trend/sparkline data
+        │
+        ▼
+IncidentMonitorService → compares readings against thresholds, opens/resolves Incident records
+        │
+        ▼
+ServerIncidentNotification → sent via Mail + Telegram channel when an incident opens or resolves
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Local setup
 
-## Contributing
+**Requirements:** PHP 8.2+, Composer, MySQL (or SQLite), Node.js (for Tailwind build)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+git clone https://github.com/AhmedAfifi1999/server-pulse.git
+cd server-pulse
 
-## Code of Conduct
+composer install
+npm install && npm run build
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+cp .env.example .env
+php artisan key:generate
+```
 
-## Security Vulnerabilities
+Configure your database credentials in `.env`, then:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+php artisan migrate
+```
 
-## License
+Create an admin user (there's no public registration — this is an internal ops tool):
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan tinker
+>>> \App\Models\User::create([
+...     'name' => 'Admin',
+...     'email' => 'admin@admin.com',
+...     'password' => bcrypt('choose-a-strong-password'),
+... ]);
+```
+
+Run the scheduler locally so metrics get recorded every minute:
+
+```bash
+php artisan schedule:work
+```
+
+Start the app:
+
+```bash
+php artisan serve
+```
+
+Visit `http://localhost:8000/dashboard`, log in, and you should see live data from your own machine.
+
+> **Note:** on WSL, `systemctl` requires systemd support to be enabled in WSL settings, or service status will always show as unavailable.
+
+## Configuration
+
+Alert thresholds and notification targets are set via `.env`:
+
+```env
+MONITOR_CPU_THRESHOLD=90
+MONITOR_MEMORY_THRESHOLD=90
+MONITOR_DISK_THRESHOLD=90
+
+MONITOR_ALERT_EMAIL=you@example.com
+
+# Optional — leave empty to disable Telegram alerts
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+```
+
+## What I'd build next
+
+- Multi-server support (monitor several hosts from one dashboard via SSH)
+- Docker packaging with correct host-metrics passthrough (`--pid=host`, mounted `/proc` and `/sys`)
+- Configurable per-service and per-disk thresholds instead of global ones
+
+## About me
+
+I'm a Laravel/PHP developer and Linux server administrator. I build and deploy web applications, and I also handle the servers they run on — from Nginx/Apache configuration to SSL, DNS, and troubleshooting. Server Pulse reflects that overlap: the app you're looking at monitors the very kind of infrastructure I manage day to day.
+
+[Upwork profile](#) · [GitHub](https://github.com/AhmedAfifi1999)
