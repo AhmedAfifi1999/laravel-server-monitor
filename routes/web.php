@@ -13,4 +13,6 @@ Route::post('/login', [LoginController::class, 'store'])->name('login.store');
 Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
 
-Route::get('/dashboard', Dashboard::class)->middleware('auth');
+Route::get('/dashboard', Dashboard::class)
+    ->middleware('auth')
+    ->name('dashboard');
