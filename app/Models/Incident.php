@@ -29,9 +29,6 @@ class Incident extends Model
         return $query->where('status', 'open');
     }
 
-    /**
-     * التسمية المعروضة للمستخدم، مثلاً "disk (/var)" أو "cpu"
-     */
     public function label(): string
     {
         return $this->identifier

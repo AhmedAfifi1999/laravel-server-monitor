@@ -12,13 +12,13 @@ class Dashboard extends Component
 {
     public array $metrics = [];
 
-    /** آخر 30 قراءة CPU من قاعدة البيانات، تُستخدم لرسم الـ sparkline */
+    /** Last 30 CPU readings from the database, used to draw the sparkline. */
     public array $cpuHistory = [];
 
-    /** الحوادث المفتوحة حالياً (لو موجودة، تظهر بشريط تنبيه أعلى الصفحة) */
+    /** Currently open incidents, displayed as an alert bar at the top of the page. */
     public array $activeIncidents = [];
 
-    /** آخر 10 حوادث (مفتوحة أو محلولة) لعرضها بجدول السجل */
+    /** Last 10 incidents, whether open or resolved, displayed in the incident history table. */
     public array $recentIncidents = [];
 
     public string $serverName = '';
@@ -32,16 +32,18 @@ class Dashboard extends Component
     }
 
     /**
-     * يُستدعى تلقائياً كل بضع ثوانٍ عبر wire:poll من الواجهة.
-     * يقرأ القياسات الحية فقط (مو تسجيل بقاعدة البيانات - هذا عمل
-     * الـ scheduled command monitor:record المنفصل كل دقيقة).
+     * Automatically called every few seconds via wire:poll from the frontend.
+     * Reads live metrics only. It does not record data in the database.
+     * Database recording is handled separately by the scheduled
+     * monitor:record command, which runs every minute.
      */
     public function refreshMetrics(): void
     {
         $this->metrics = app(ServerMonitorService::class)->getAllMetrics();
 
-        // نفحص الحدود بنفس لحظة العرض أيضاً، حتى لو الجدولة
-        // (كل دقيقة) لسا ما وصلت، تظهر الحادثة بأسرع وقت ممكن.
+        // Evaluate thresholds at the same time as the dashboard refresh.
+        // This ensures incidents appear immediately, even if the scheduled
+        // command that runs every minute has not executed yet.
         app(IncidentMonitorService::class)->evaluate($this->metrics);
 
         $this->loadIncidents();
@@ -73,8 +75,8 @@ class Dashboard extends Component
     }
 
     /**
-     * يحول سجل الـ CPU إلى إحداثيات SVG polyline جاهزة للرسم
-     * بدون أي مكتبة JS خارجية.
+     * Converts the CPU history into SVG polyline coordinates
+     * ready for rendering without any external JavaScript library.
      */
     public function cpuSparklinePoints(int $width = 560, int $height = 64): string
     {
