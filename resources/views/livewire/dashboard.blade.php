@@ -2,21 +2,51 @@
     wire:poll.3s="refreshMetrics"
     class="min-h-screen bg-[#0B0E14] text-[#E6E8EB] font-['Space_Grotesk',sans-serif] px-6 py-8"
 >
-    {{-- ===== Header ===== --}}
-    <div class="flex items-center justify-between mb-8 pb-5 border-b border-[#232936]">
-        <div class="flex items-center gap-3">
-            <span class="relative flex h-2.5 w-2.5">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F5A623] opacity-60"></span>
-                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#F5A623]"></span>
-            </span>
-            <h1 class="text-xl font-semibold tracking-tight">Server Pulse</h1>
-            <span class="text-sm text-[#8B93A1] font-mono">/ {{ $serverName }}</span>
+{{-- ===== Header ===== --}}
+<div class="flex items-center justify-between mb-8 pb-5 border-b border-[#232936]">
+    <div class="flex items-center gap-3">
+        <span class="relative flex h-2.5 w-2.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F5A623] opacity-60"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#F5A623]"></span>
+        </span>
+
+        <h1 class="text-xl font-semibold tracking-tight">Server Pulse</h1>
+
+        <span class="text-sm text-[#8B93A1] font-mono">
+            / {{ $serverName }}
+        </span>
+    </div>
+
+    <div class="flex items-center gap-6">
+        {{-- User --}}
+        <div class="text-right">
+            <div class="text-xs text-[#8B93A1]">logged in as</div>
+            <div class="text-sm font-medium">
+                {{ auth()->user()->name }}
+            </div>
         </div>
+
+        {{-- Last updated --}}
         <div class="text-right">
             <div class="text-xs text-[#8B93A1]">last updated</div>
-            <div class="font-mono text-sm">{{ $metrics['timestamp'] ?? '—' }}</div>
+            <div class="font-mono text-sm">
+                {{ $metrics['timestamp'] ?? '—' }}
+            </div>
         </div>
+
+        {{-- Logout --}}
+        <form method="POST" action="{{ route('logout') }}">
+            @csrf
+
+            <button
+                type="submit"
+                class="px-3 py-2 text-xs font-mono text-[#F87171] border border-[#3A252A] rounded hover:bg-[#24171A] hover:border-[#F87171] transition-colors"
+            >
+                LOGOUT
+            </button>
+        </form>
     </div>
+</div>
 
     {{-- ===== Primary metric cards ===== --}}
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
