@@ -1,0 +1,40 @@
+name: Laravel Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: server-monitor
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            cd /home/server-monitor/public_html
+
+            git pull origin main
+
+            composer install \
+              --no-interaction \
+              --prefer-dist \
+              --optimize-autoloader \
+              --no-dev
+
+            php artisan migrate --force
+
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            php artisan storage:link || true
+
+            echo "Deployment completed successfully."
